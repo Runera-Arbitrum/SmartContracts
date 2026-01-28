@@ -296,9 +296,7 @@ Runera/
 
 ## 🌐 Target Networks
 
-- **Arbitrum** - Layer 2 scaling
 - **Base** - Coinbase L2
-- **Mantle** - High-performance L2
 
 ---
 
