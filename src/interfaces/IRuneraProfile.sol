@@ -7,12 +7,14 @@ pragma solidity ^0.8.20;
  */
 interface IRuneraProfile {
     /// @notice Profile data struct (stored on-chain)
-    /// @dev Optimized packing: fits in 1 storage slot (256 bits)
+    /// @dev Optimized for running app: includes distance and streak
     struct ProfileData {
         uint96 xp; // Enough for 79 Octillion XP
         uint16 level; // Up to 65,535 levels
-        uint32 tasksCompleted; // Up to 4.2B tasks
+        uint32 runCount; // Total verified runs (renamed from tasksCompleted)
         uint32 achievementCount; // Up to 4.2B achievements
+        uint64 totalDistanceMeters; // Lifetime distance in meters
+        uint32 longestStreakDays; // Longest consecutive running days
         uint64 lastUpdated; // Timestamp (valid until year 584942)
         bool exists; // Flag to check if registered
     }
@@ -21,8 +23,10 @@ interface IRuneraProfile {
     struct ProfileStats {
         uint96 xp;
         uint16 level;
-        uint32 tasksCompleted;
+        uint32 runCount;
         uint32 achievementCount;
+        uint64 totalDistanceMeters;
+        uint32 longestStreakDays;
         uint64 lastUpdated;
     }
 

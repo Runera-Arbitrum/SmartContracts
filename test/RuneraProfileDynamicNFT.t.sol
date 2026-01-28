@@ -22,7 +22,7 @@ contract RuneraProfileDynamicNFTTest is Test {
     // EIP-712 TypeHash (must match contract)
     bytes32 constant STATS_UPDATE_TYPEHASH =
         keccak256(
-            "StatsUpdate(address user,uint96 xp,uint16 level,uint32 tasksCompleted,uint32 achievementCount,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
+            "StatsUpdate(address user,uint96 xp,uint16 level,uint32 runCount,uint32 achievementCount,uint64 totalDistanceMeters,uint32 longestStreakDays,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
         );
 
     // Events
@@ -100,8 +100,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         );
         assertEq(profile.xp, 0);
         assertEq(profile.level, 1);
-        assertEq(profile.tasksCompleted, 0);
+        assertEq(profile.runCount, 0);
         assertEq(profile.achievementCount, 0);
+        assertEq(profile.totalDistanceMeters, 0);
+        assertEq(profile.longestStreakDays, 0);
         assertTrue(profile.exists);
     }
 
@@ -123,8 +125,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 300,
             level: 3,
-            tasksCompleted: 5,
+            runCount: 5,
             achievementCount: 1,
+            totalDistanceMeters: 5000,
+            longestStreakDays: 3,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -152,8 +156,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 500,
             level: 5,
-            tasksCompleted: 10,
+            runCount: 10,
             achievementCount: 2,
+            totalDistanceMeters: 10000,
+            longestStreakDays: 5,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -181,8 +187,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 700,
             level: 7,
-            tasksCompleted: 15,
+            runCount: 15,
             achievementCount: 3,
+            totalDistanceMeters: 15000,
+            longestStreakDays: 7,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -210,8 +218,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 900,
             level: 9,
-            tasksCompleted: 20,
+            runCount: 20,
             achievementCount: 5,
+            totalDistanceMeters: 20000,
+            longestStreakDays: 10,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -241,8 +251,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 300,
             level: 3,
-            tasksCompleted: 5,
+            runCount: 5,
             achievementCount: 1,
+            totalDistanceMeters: 5000,
+            longestStreakDays: 3,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -273,8 +285,10 @@ contract RuneraProfileDynamicNFTTest is Test {
             .ProfileStats({
                 xp: 1000,
                 level: 5,
-                tasksCompleted: 10,
+                runCount: 10,
                 achievementCount: 3,
+                totalDistanceMeters: 10000,
+                longestStreakDays: 5,
                 lastUpdated: uint64(block.timestamp)
             });
 
@@ -294,7 +308,7 @@ contract RuneraProfileDynamicNFTTest is Test {
         );
         assertEq(profile.xp, 1000);
         assertEq(profile.level, 5);
-        assertEq(profile.tasksCompleted, 10);
+        assertEq(profile.runCount, 10);
         assertEq(profile.achievementCount, 3);
     }
 
@@ -305,8 +319,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 100,
             level: 2,
-            tasksCompleted: 1,
+            runCount: 1,
             achievementCount: 0,
+            totalDistanceMeters: 1000,
+            longestStreakDays: 1,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -324,8 +340,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 100,
             level: 2,
-            tasksCompleted: 1,
+            runCount: 1,
             achievementCount: 0,
+            totalDistanceMeters: 1000,
+            longestStreakDays: 1,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -352,8 +370,10 @@ contract RuneraProfileDynamicNFTTest is Test {
         IRuneraProfile.ProfileStats memory stats = IRuneraProfile.ProfileStats({
             xp: 100,
             level: 2,
-            tasksCompleted: 1,
+            runCount: 1,
             achievementCount: 0,
+            totalDistanceMeters: 1000,
+            longestStreakDays: 1,
             lastUpdated: uint64(block.timestamp)
         });
 
@@ -445,8 +465,10 @@ contract RuneraProfileDynamicNFTTest is Test {
                 user,
                 stats.xp,
                 stats.level,
-                stats.tasksCompleted,
+                stats.runCount,
                 stats.achievementCount,
+                stats.totalDistanceMeters,
+                stats.longestStreakDays,
                 stats.lastUpdated,
                 nonce,
                 deadline

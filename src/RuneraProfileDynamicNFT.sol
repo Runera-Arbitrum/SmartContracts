@@ -41,7 +41,7 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
     /// @notice EIP-712 type hash for stats update
     bytes32 public constant STATS_UPDATE_TYPEHASH =
         keccak256(
-            "StatsUpdate(address user,uint96 xp,uint16 level,uint32 tasksCompleted,uint32 achievementCount,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
+            "StatsUpdate(address user,uint96 xp,uint16 level,uint32 runCount,uint32 achievementCount,uint64 totalDistanceMeters,uint32 longestStreakDays,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
         );
 
     /// @notice Tier thresholds (DEMO MODE - minimal for testing)
@@ -99,8 +99,10 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
         _profiles[msg.sender] = ProfileData({
             xp: 0,
             level: 1,
-            tasksCompleted: 0,
+            runCount: 0,
             achievementCount: 0,
+            totalDistanceMeters: 0,
+            longestStreakDays: 0,
             lastUpdated: uint64(block.timestamp),
             exists: true
         });
@@ -144,8 +146,10 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
                 user,
                 stats.xp,
                 stats.level,
-                stats.tasksCompleted,
+                stats.runCount,
                 stats.achievementCount,
+                stats.totalDistanceMeters,
+                stats.longestStreakDays,
                 stats.lastUpdated,
                 currentNonce,
                 deadline
@@ -167,8 +171,10 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
         ProfileData storage profile = _profiles[user];
         profile.xp = stats.xp;
         profile.level = stats.level;
-        profile.tasksCompleted = stats.tasksCompleted;
+        profile.runCount = stats.runCount;
         profile.achievementCount = stats.achievementCount;
+        profile.totalDistanceMeters = stats.totalDistanceMeters;
+        profile.longestStreakDays = stats.longestStreakDays;
         profile.lastUpdated = stats.lastUpdated;
 
         emit StatsUpdated(user, stats);
