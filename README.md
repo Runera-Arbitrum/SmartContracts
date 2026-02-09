@@ -5,8 +5,9 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
 [![Foundry](https://img.shields.io/badge/Built%20with-Foundry-orange)](https://getfoundry.sh/)
 [![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-5.4.0-purple)](https://openzeppelin.com/contracts/)
-[![Tests](https://img.shields.io/badge/Tests-112%20Passed-green)]()
+[![Tests](https://img.shields.io/badge/Tests-118%20Passed-green)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Network](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-blue)](https://sepolia.arbiscan.io/)
 
 ---
 
@@ -98,10 +99,23 @@ Tier 1-5 ranking system with metadata hash storage
 
 ## 📁 Smart Contracts
 
+### Deployed Addresses (Arbitrum Sepolia)
+
+| Contract | Address |
+|----------|---------|  
+| AccessControl | `0x3518B6A434F79625011321E348d14895946e3Be9` |
+| EventRegistry | `0xc3a995a9756146b59Ec874bde2A326944E6F7B8E` |
+| ProfileDynamicNFT | `0xAcb9b3e8dadA2d25Db5420634Fb0eD96161824A5` |
+| AchievementDynamicNFT | `0xb2935413BAB7ABc75BBf1A91082b0F32cbB6E74F` |
+| CosmeticNFT | `0x94777E23b8E545eC57BD84DB58e0A800E9Db5aAD` |
+| Marketplace | `0x786b9b1475fFB5FA79af27054C614B53Efb053de` |
+
+### Contract Overview
+
 | Contract | Type | Purpose |
 |----------|------|---------|
 | `RuneraAccessControl.sol` | Access Control | Centralized role management |
-| `RuneraProfileDynamicNFT.sol` | ERC-1155 Soulbound | Profile with dynamic metadata |
+| `RuneraProfileDynamicNFT.sol` | ERC-1155 Soulbound | Profile with dynamic metadata + gasless registration |
 | `RuneraAchievementDynamicNFT.sol` | ERC-1155 Soulbound | Event-based achievements |
 | `RuneraEventRegistry.sol` | Registry | Event lifecycle management |
 | `RuneraCosmeticNFT.sol` | ERC-1155 Transferable | Tradeable cosmetic items |
@@ -116,6 +130,7 @@ Tier 1-5 ranking system with metadata hash storage
 - ✅ On-chain data storage (XP, level, stats)
 - ✅ Dynamic tier system (Bronze → Diamond)
 - ✅ Backend-authorized stats updates via EIP-712 signatures
+- ✅ **Gasless registration** via `registerFor()` (relayer pays gas)
 
 ### Achievement System
 - ✅ Soulbound achievement NFTs
@@ -179,8 +194,8 @@ function _update(address from, address to, ...) internal override {
 
 ```bash
 # Clone repository
-git clone https://github.com/Runera-Project/SmartContract.git
-cd SmartContract
+git clone https://github.com/Runera-Arbitrum/SmartContracts.git
+cd SmartContracts
 
 # Install dependencies
 pnpm install
@@ -198,7 +213,7 @@ PRIVATE_KEY=your_private_key
 DEPLOYER_ADDRESS=your_deployer_address
 BACKEND_SIGNER_ADDRESS=your_backend_signer
 EVENT_MANAGER_ADDRESS=your_event_manager
-BASESCAN_API_KEY=your_api_key
+ARBISCAN_API_KEY=your_api_key
 ```
 
 ### Build
@@ -262,12 +277,12 @@ forge test --summary
 | Contract | Tests | Status |
 |----------|-------|--------|
 | RuneraAccessControl | 9 | ✅ |
-| RuneraProfileDynamicNFT | 19 | ✅ |
+| RuneraProfileDynamicNFT | 25 | ✅ |
 | RuneraAchievementDynamicNFT | 15 | ✅ |
 | RuneraEventRegistry | 16 | ✅ |
 | RuneraCosmeticNFT | 26 | ✅ |
 | RuneraMarketplace | 27 | ✅ |
-| **Total** | **112** | ✅ |
+| **Total** | **118** | ✅ |
 
 ---
 
@@ -294,9 +309,11 @@ Runera/
 
 ---
 
-## 🌐 Target Networks
+## 🌐 Deployed Networks
 
-- **Base** - Coinbase L2
+- **Arbitrum Sepolia** (Testnet) - Chain ID: 421614
+- RPC: `https://sepolia-rollup.arbitrum.io/rpc`
+- Explorer: [sepolia.arbiscan.io](https://sepolia.arbiscan.io/)
 
 ---
 
