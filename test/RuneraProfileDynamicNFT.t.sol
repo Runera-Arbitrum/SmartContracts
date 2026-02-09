@@ -25,6 +25,10 @@ contract RuneraProfileDynamicNFTTest is Test {
             "StatsUpdate(address user,uint96 xp,uint16 level,uint32 runCount,uint32 achievementCount,uint64 totalDistanceMeters,uint32 longestStreakDays,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
         );
 
+    // EIP-712 TypeHash for gasless registration (must match contract)
+    bytes32 constant REGISTER_TYPEHASH =
+        keccak256("Register(address user,uint256 nonce,uint256 deadline)");
+
     // Events
     event ProfileRegistered(address indexed user);
     event ProfileNFTMinted(address indexed user, uint256 tokenId, uint8 tier);
@@ -105,6 +109,127 @@ contract RuneraProfileDynamicNFTTest is Test {
         assertEq(profile.totalDistanceMeters, 0);
         assertEq(profile.longestStreakDays, 0);
         assertTrue(profile.exists);
+    }
+
+    // ========== Gasless Registration Tests ==========
+
+    function test_RegisterFor_Success() public {
+        uint256 userPrivateKey = 0x5678;
+        address user = vm.addr(userPrivateKey);
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            userPrivateKey
+        );
+
+        // Anyone can relay the transaction
+        address relayer = address(0x999);
+        vm.prank(relayer);
+        profileNFT.registerFor(user, deadline, signature);
+
+        assertTrue(profileNFT.hasProfile(user));
+        assertEq(profileNFT.balanceOf(user, profileNFT.getTokenId(user)), 1);
+    }
+
+    function test_RegisterFor_EmitsEvents() public {
+        uint256 userPrivateKey = 0x5678;
+        address user = vm.addr(userPrivateKey);
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 expectedTokenId = profileNFT.getTokenId(user);
+
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            userPrivateKey
+        );
+
+        vm.expectEmit(true, false, false, false);
+        emit ProfileRegistered(user);
+        vm.expectEmit(true, false, false, true);
+        emit ProfileNFTMinted(user, expectedTokenId, 1);
+        profileNFT.registerFor(user, deadline, signature);
+    }
+
+    function test_RegisterFor_ExpiredSignature() public {
+        uint256 userPrivateKey = 0x5678;
+        address user = vm.addr(userPrivateKey);
+        uint256 deadline = block.timestamp - 1; // Past deadline
+
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            userPrivateKey
+        );
+
+        vm.expectRevert(RuneraProfileDynamicNFT.SignatureExpired.selector);
+        profileNFT.registerFor(user, deadline, signature);
+    }
+
+    function test_RegisterFor_AlreadyRegistered() public {
+        uint256 userPrivateKey = 0x5678;
+        address user = vm.addr(userPrivateKey);
+        uint256 deadline = block.timestamp + 1 hours;
+
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            userPrivateKey
+        );
+        profileNFT.registerFor(user, deadline, signature);
+
+        // Try to register again with new signature
+        bytes memory signature2 = _signRegister(
+            user,
+            1,
+            deadline,
+            userPrivateKey
+        );
+
+        vm.expectRevert(RuneraProfileDynamicNFT.AlreadyRegistered.selector);
+        profileNFT.registerFor(user, deadline, signature2);
+    }
+
+    function test_RegisterFor_InvalidSigner() public {
+        uint256 userPrivateKey = 0x5678;
+        uint256 wrongPrivateKey = 0x9999;
+        address user = vm.addr(userPrivateKey);
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Sign with wrong key
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            wrongPrivateKey
+        );
+
+        vm.expectRevert(RuneraProfileDynamicNFT.InvalidSignature.selector);
+        profileNFT.registerFor(user, deadline, signature);
+    }
+
+    function test_RegisterFor_NonceIncrements() public {
+        uint256 userPrivateKey = 0x5678;
+        address user = vm.addr(userPrivateKey);
+
+        assertEq(profileNFT.getRegisterNonce(user), 0);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes memory signature = _signRegister(
+            user,
+            0,
+            deadline,
+            userPrivateKey
+        );
+        profileNFT.registerFor(user, deadline, signature);
+
+        // Nonce should be incremented even though user is now registered
+        assertEq(profileNFT.getRegisterNonce(user), 1);
     }
 
     // ========== Tier Calculation Tests ==========
@@ -435,6 +560,28 @@ contract RuneraProfileDynamicNFTTest is Test {
     }
 
     // ========== Helper Functions ==========
+
+    function _signRegister(
+        address user,
+        uint256 nonce,
+        uint256 deadline,
+        uint256 privateKey
+    ) internal view returns (bytes memory) {
+        bytes32 structHash = keccak256(
+            abi.encode(REGISTER_TYPEHASH, user, nonce, deadline)
+        );
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                profileNFT.domainSeparator(),
+                structHash
+            )
+        );
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
 
     function _signStatsUpdate(
         address user,

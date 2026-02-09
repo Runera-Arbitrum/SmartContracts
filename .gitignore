@@ -6,19 +6,20 @@ out/
 node_modules/
 lib/
 
-# Ignores development broadcast logs
-!/broadcast
-/broadcast/*/31337/
-/broadcast/**/dry-run/
+# Broadcast logs (deployment artifacts)
+broadcast/
 
-# Docs
+# Docs (sensitive/private)
 docs/
+doc/
+Doc Guide/
 
 # Dotenv file
 .env
 
-
-#library
-
-backend/
+# Library/Backend
+Backend/
 backendprd/
+
+# Misc
+gitbook.zip

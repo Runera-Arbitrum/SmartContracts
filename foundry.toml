@@ -8,7 +8,12 @@ remappings = [
     "@openzeppelin/=node_modules/@openzeppelin/"
 ]
 
+# RPC Endpoints
+[rpc_endpoints]
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
+
+# Block Explorer API Keys
 [etherscan]
-base-sepolia = { key = "${BASESCAN_API_KEY}" }
+arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
 
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

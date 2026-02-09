@@ -44,6 +44,13 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
             "StatsUpdate(address user,uint96 xp,uint16 level,uint32 runCount,uint32 achievementCount,uint64 totalDistanceMeters,uint32 longestStreakDays,uint64 lastUpdated,uint256 nonce,uint256 deadline)"
         );
 
+    /// @notice EIP-712 type hash for gasless registration
+    bytes32 public constant REGISTER_TYPEHASH =
+        keccak256("Register(address user,uint256 nonce,uint256 deadline)");
+
+    /// @notice Mapping to track registration nonces (separate from stats nonces)
+    mapping(address => uint256) public registerNonces;
+
     /// @notice Tier thresholds (DEMO MODE - minimal for testing)
     uint16 public constant TIER_SILVER = 3; // Level 3+ = Silver
     uint16 public constant TIER_GOLD = 5; // Level 5+ = Gold
@@ -115,6 +122,76 @@ contract RuneraProfileDynamicNFT is ERC1155, EIP712, IRuneraProfile {
 
         emit ProfileRegistered(msg.sender);
         emit ProfileNFTMinted(msg.sender, tokenId, tier);
+    }
+
+    /**
+     * @notice Register a profile on behalf of a user (gasless)
+     * @dev Anyone can call this to relay, but user must sign
+     * @param user The address to register
+     * @param deadline Signature expiry timestamp
+     * @param signature EIP-712 signature from the user
+     */
+    function registerFor(
+        address user,
+        uint256 deadline,
+        bytes calldata signature
+    ) external {
+        // Check deadline
+        if (block.timestamp > deadline) {
+            revert SignatureExpired();
+        }
+
+        // Check not already registered
+        if (_profiles[user].exists) {
+            revert AlreadyRegistered();
+        }
+
+        // Get and increment nonce
+        uint256 currentNonce = registerNonces[user];
+        registerNonces[user] = currentNonce + 1;
+
+        // Verify EIP-712 signature from user
+        bytes32 structHash = keccak256(
+            abi.encode(REGISTER_TYPEHASH, user, currentNonce, deadline)
+        );
+
+        bytes32 hash = _hashTypedDataV4(structHash);
+        address signer = hash.recover(signature);
+
+        // User must sign their own registration
+        if (signer != user) {
+            revert InvalidSignature();
+        }
+
+        // Create profile
+        _profiles[user] = ProfileData({
+            xp: 0,
+            level: 1,
+            runCount: 0,
+            achievementCount: 0,
+            totalDistanceMeters: 0,
+            longestStreakDays: 0,
+            lastUpdated: uint64(block.timestamp),
+            exists: true
+        });
+
+        uint256 tokenId = getTokenId(user);
+        uint8 tier = getProfileTier(user);
+
+        // Mint NFT
+        _mint(user, tokenId, 1, "");
+
+        emit ProfileRegistered(user);
+        emit ProfileNFTMinted(user, tokenId, tier);
+    }
+
+    /**
+     * @notice Get registration nonce for a user
+     * @param user The user address
+     * @return The current registration nonce
+     */
+    function getRegisterNonce(address user) external view returns (uint256) {
+        return registerNonces[user];
     }
 
     /**
