@@ -5,7 +5,7 @@
 [![Solidity](https://img.shields.io/badge/Solidity-0.8.20-blue)](https://soliditylang.org/)
 [![Foundry](https://img.shields.io/badge/Built%20with-Foundry-orange)](https://getfoundry.sh/)
 [![OpenZeppelin](https://img.shields.io/badge/OpenZeppelin-5.4.0-purple)](https://openzeppelin.com/contracts/)
-[![Tests](https://img.shields.io/badge/Tests-118%20Passed-green)]()
+[![Tests](https://img.shields.io/badge/Tests-127%20Passed-green)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 [![Network](https://img.shields.io/badge/Network-Arbitrum%20Sepolia-blue)](https://sepolia.arbiscan.io/)
 
@@ -104,7 +104,7 @@ Tier 1-5 ranking system with metadata hash storage
 | Contract | Address |
 |----------|---------|  
 | AccessControl | `0x3518B6A434F79625011321E348d14895946e3Be9` |
-| EventRegistry | `0xc3a995a9756146b59Ec874bde2A326944E6F7B8E` |
+| EventRegistry | `0x79651C3dd00661623bBA528c60A350C83C228Bc7` |
 | ProfileDynamicNFT | `0xAcb9b3e8dadA2d25Db5420634Fb0eD96161824A5` |
 | AchievementDynamicNFT | `0xb2935413BAB7ABc75BBf1A91082b0F32cbB6E74F` |
 | CosmeticNFT | `0x94777E23b8E545eC57BD84DB58e0A800E9Db5aAD` |
@@ -142,6 +142,9 @@ Tier 1-5 ranking system with metadata hash storage
 - ✅ Time-window based activation
 - ✅ Participant capacity management
 - ✅ Event Manager role restrictions
+- ✅ **On-chain reward config** (`EventReward` struct) — achievement tier, cosmetic item IDs, XP bonus
+- ✅ `setEventReward()` — set/update reward after event creation
+- ✅ `getEventReward()` — backend reads reward config to trigger minting
 
 ### Cosmetic System
 - ✅ Transferable ERC-1155 items
@@ -279,10 +282,10 @@ forge test --summary
 | RuneraAccessControl | 9 | ✅ |
 | RuneraProfileDynamicNFT | 25 | ✅ |
 | RuneraAchievementDynamicNFT | 15 | ✅ |
-| RuneraEventRegistry | 16 | ✅ |
+| RuneraEventRegistry | 25 | ✅ |
 | RuneraCosmeticNFT | 26 | ✅ |
 | RuneraMarketplace | 27 | ✅ |
-| **Total** | **118** | ✅ |
+| **Total** | **127** | ✅ |
 
 ---
 
@@ -302,6 +305,7 @@ Runera/
 ├── test/                                 # Foundry Tests
 ├── script/
 │   ├── DeployComplete.s.sol             # Full Deployment
+│   ├── DeployEventRegistry.s.sol        # Redeploy EventRegistry only
 │   └── CreateGenesisEvent.s.sol         # Genesis Event
 ├── foundry.toml                          # Foundry Config
 └── package.json                          # NPM Dependencies
