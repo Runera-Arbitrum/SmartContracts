@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import {Script, console} from "forge-std/Script.sol";
 import {RuneraEventRegistry} from "../src/RuneraEventRegistry.sol";
+import {IRuneraEventRegistry} from "../src/interfaces/IRuneraEventRegistry.sol";
 
 /**
  * @title CreateGenesisEvent
@@ -30,12 +31,23 @@ contract CreateGenesisEvent is Script {
 
         // Create Genesis 10K event
         // Active from January 1, 2026 to December 31, 2026
+        // Build empty reward (no reward for genesis event)
+        uint256[] memory noCosmetics = new uint256[](0);
+        IRuneraEventRegistry.EventReward memory noReward = IRuneraEventRegistry
+            .EventReward({
+                achievementTier: 0,
+                cosmeticItemIds: noCosmetics,
+                xpBonus: 0,
+                hasReward: false
+            });
+
         registry.createEvent(
             genesisEventId,
             "Genesis 10K",
             1735689600, // January 1, 2026 00:00:00 UTC
             1767225599, // December 31, 2026 23:59:59 UTC
-            10000 // Max 10,000 participants
+            10000, // Max 10,000 participants
+            noReward
         );
 
         console.log("Genesis 10K event created!");

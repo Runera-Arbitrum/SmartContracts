@@ -7,13 +7,19 @@ import {RuneraEventRegistry} from "../src/RuneraEventRegistry.sol";
 import {IRuneraEventRegistry} from "../src/interfaces/IRuneraEventRegistry.sol";
 
 contract RuneraEventRegistryTest is Test {
-    // Redeclare event for expectEmit (Solidity limitation: can't reference interface events directly)
+    // Redeclare events for expectEmit (Solidity limitation)
     event EventCreated(
         bytes32 indexed eventId,
         string name,
         uint256 startTime,
         uint256 endTime,
         uint256 maxParticipants
+    );
+    event EventRewardConfigured(
+        bytes32 indexed eventId,
+        uint8 achievementTier,
+        uint256[] cosmeticItemIds,
+        uint96 xpBonus
     );
 
     RuneraAccessControl public accessControl;
@@ -24,6 +30,40 @@ contract RuneraEventRegistryTest is Test {
     address public randomUser = address(3);
 
     bytes32 public testEventId = keccak256("TEST_EVENT");
+
+    // Helper: empty reward (no reward)
+    function _noReward()
+        internal
+        pure
+        returns (IRuneraEventRegistry.EventReward memory)
+    {
+        uint256[] memory empty = new uint256[](0);
+        return
+            IRuneraEventRegistry.EventReward({
+                achievementTier: 0,
+                cosmeticItemIds: empty,
+                xpBonus: 0,
+                hasReward: false
+            });
+    }
+
+    // Helper: full reward
+    function _fullReward()
+        internal
+        pure
+        returns (IRuneraEventRegistry.EventReward memory)
+    {
+        uint256[] memory cosmetics = new uint256[](2);
+        cosmetics[0] = 42;
+        cosmetics[1] = 7;
+        return
+            IRuneraEventRegistry.EventReward({
+                achievementTier: 3,
+                cosmeticItemIds: cosmetics,
+                xpBonus: 500,
+                hasReward: true
+            });
+    }
 
     function setUp() public {
         vm.startPrank(admin);
@@ -36,6 +76,8 @@ contract RuneraEventRegistryTest is Test {
         vm.stopPrank();
     }
 
+    // ─── createEvent (no reward) ─────────────────────────────────────────────
+
     function test_CreateEvent() public {
         uint256 startTime = block.timestamp;
         uint256 endTime = block.timestamp + 30 days;
@@ -46,7 +88,8 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
 
         IRuneraEventRegistry.EventConfig memory config = eventRegistry.getEvent(
@@ -61,6 +104,25 @@ contract RuneraEventRegistryTest is Test {
         assertTrue(config.active);
     }
 
+    function test_CreateEventNoReward_RewardIsEmpty() public {
+        vm.prank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "No Reward Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            _noReward()
+        );
+
+        IRuneraEventRegistry.EventReward memory reward = eventRegistry
+            .getEventReward(testEventId);
+        assertFalse(reward.hasReward);
+        assertEq(reward.achievementTier, 0);
+        assertEq(reward.cosmeticItemIds.length, 0);
+        assertEq(reward.xpBonus, 0);
+    }
+
     function test_CreateEventEmitsEvent() public {
         uint256 startTime = block.timestamp;
         uint256 endTime = block.timestamp + 30 days;
@@ -73,9 +135,208 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
     }
+
+    // ─── createEvent (with reward) ────────────────────────────────────────────
+
+    function test_CreateEventWithReward() public {
+        vm.prank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Reward Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            500,
+            _fullReward()
+        );
+
+        IRuneraEventRegistry.EventReward memory reward = eventRegistry
+            .getEventReward(testEventId);
+        assertTrue(reward.hasReward);
+        assertEq(reward.achievementTier, 3);
+        assertEq(reward.cosmeticItemIds.length, 2);
+        assertEq(reward.cosmeticItemIds[0], 42);
+        assertEq(reward.cosmeticItemIds[1], 7);
+        assertEq(reward.xpBonus, 500);
+    }
+
+    function test_CreateEventWithReward_EmitsRewardEvent() public {
+        uint256[] memory cosmetics = new uint256[](2);
+        cosmetics[0] = 42;
+        cosmetics[1] = 7;
+
+        vm.prank(eventManager);
+        vm.expectEmit(true, false, false, true);
+        emit EventRewardConfigured(testEventId, 3, cosmetics, 500);
+        eventRegistry.createEvent(
+            testEventId,
+            "Reward Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            500,
+            _fullReward()
+        );
+    }
+
+    function test_CreateEventWithAchievementOnlyReward() public {
+        uint256[] memory empty = new uint256[](0);
+        IRuneraEventRegistry.EventReward memory reward = IRuneraEventRegistry
+            .EventReward({
+                achievementTier: 5, // Diamond
+                cosmeticItemIds: empty,
+                xpBonus: 1000,
+                hasReward: true
+            });
+
+        vm.prank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Achievement Only",
+            block.timestamp,
+            block.timestamp + 30 days,
+            0,
+            reward
+        );
+
+        IRuneraEventRegistry.EventReward memory stored = eventRegistry
+            .getEventReward(testEventId);
+        assertEq(stored.achievementTier, 5);
+        assertEq(stored.cosmeticItemIds.length, 0);
+        assertTrue(stored.hasReward);
+    }
+
+    function test_CreateEventInvalidTier_Reverts() public {
+        uint256[] memory empty = new uint256[](0);
+        IRuneraEventRegistry.EventReward memory badReward = IRuneraEventRegistry
+            .EventReward({
+                achievementTier: 6, // Invalid (max is 5)
+                cosmeticItemIds: empty,
+                xpBonus: 0,
+                hasReward: true
+            });
+
+        vm.prank(eventManager);
+        vm.expectRevert(RuneraEventRegistry.InvalidRewardTier.selector);
+        eventRegistry.createEvent(
+            testEventId,
+            "Bad Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            badReward
+        );
+    }
+
+    // ─── setEventReward ───────────────────────────────────────────────────────
+
+    function test_SetEventReward_AfterCreation() public {
+        vm.startPrank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            _noReward()
+        );
+
+        eventRegistry.setEventReward(testEventId, _fullReward());
+        vm.stopPrank();
+
+        IRuneraEventRegistry.EventReward memory reward = eventRegistry
+            .getEventReward(testEventId);
+        assertTrue(reward.hasReward);
+        assertEq(reward.achievementTier, 3);
+        assertEq(reward.xpBonus, 500);
+    }
+
+    function test_SetEventReward_UpdateExistingReward() public {
+        vm.startPrank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            _fullReward()
+        );
+
+        // Update to tier 5
+        uint256[] memory newCosmetics = new uint256[](1);
+        newCosmetics[0] = 99;
+        IRuneraEventRegistry.EventReward
+            memory updatedReward = IRuneraEventRegistry.EventReward({
+                achievementTier: 5,
+                cosmeticItemIds: newCosmetics,
+                xpBonus: 2000,
+                hasReward: true
+            });
+        eventRegistry.setEventReward(testEventId, updatedReward);
+        vm.stopPrank();
+
+        IRuneraEventRegistry.EventReward memory stored = eventRegistry
+            .getEventReward(testEventId);
+        assertEq(stored.achievementTier, 5);
+        assertEq(stored.cosmeticItemIds[0], 99);
+        assertEq(stored.xpBonus, 2000);
+    }
+
+    function test_SetEventReward_NonExistentEvent_Reverts() public {
+        vm.prank(eventManager);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                RuneraEventRegistry.EventDoesNotExist.selector,
+                testEventId
+            )
+        );
+        eventRegistry.setEventReward(testEventId, _fullReward());
+    }
+
+    function test_SetEventReward_NonManager_Reverts() public {
+        vm.prank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            _noReward()
+        );
+
+        vm.prank(randomUser);
+        vm.expectRevert(RuneraEventRegistry.NotEventManager.selector);
+        eventRegistry.setEventReward(testEventId, _fullReward());
+    }
+
+    function test_SetEventReward_InvalidTier_Reverts() public {
+        vm.startPrank(eventManager);
+        eventRegistry.createEvent(
+            testEventId,
+            "Event",
+            block.timestamp,
+            block.timestamp + 30 days,
+            100,
+            _noReward()
+        );
+
+        uint256[] memory empty = new uint256[](0);
+        IRuneraEventRegistry.EventReward memory badReward = IRuneraEventRegistry
+            .EventReward({
+                achievementTier: 6,
+                cosmeticItemIds: empty,
+                xpBonus: 0,
+                hasReward: true
+            });
+
+        vm.expectRevert(RuneraEventRegistry.InvalidRewardTier.selector);
+        eventRegistry.setEventReward(testEventId, badReward);
+        vm.stopPrank();
+    }
+
+    // ─── Existing tests (updated signature) ──────────────────────────────────
 
     function test_CannotCreateDuplicateEvent() public {
         uint256 startTime = block.timestamp;
@@ -87,7 +348,8 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
 
         vm.expectRevert(
@@ -101,23 +363,22 @@ contract RuneraEventRegistryTest is Test {
             "Duplicate Event",
             startTime,
             endTime,
-            500
+            500,
+            _noReward()
         );
         vm.stopPrank();
     }
 
     function test_CannotCreateEventWithInvalidTimeWindow() public {
-        uint256 startTime = block.timestamp + 30 days;
-        uint256 endTime = block.timestamp; // End before start
-
         vm.prank(eventManager);
         vm.expectRevert(RuneraEventRegistry.InvalidTimeWindow.selector);
         eventRegistry.createEvent(
             testEventId,
             "Invalid Event",
-            startTime,
-            endTime,
-            1000
+            block.timestamp + 30 days,
+            block.timestamp,
+            1000,
+            _noReward()
         );
     }
 
@@ -129,7 +390,8 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             block.timestamp,
             block.timestamp + 30 days,
-            1000
+            1000,
+            _noReward()
         );
     }
 
@@ -143,7 +405,8 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
 
         uint256 newEndTime = block.timestamp + 60 days;
@@ -193,12 +456,12 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
 
         assertTrue(eventRegistry.isEventActive(testEventId));
 
-        // Warp past end time
         vm.warp(endTime + 1);
         assertFalse(eventRegistry.isEventActive(testEventId));
     }
@@ -213,12 +476,12 @@ contract RuneraEventRegistryTest is Test {
             "Future Event",
             startTime,
             endTime,
-            1000
+            1000,
+            _noReward()
         );
 
         assertFalse(eventRegistry.isEventActive(testEventId));
 
-        // Warp to start time
         vm.warp(startTime);
         assertTrue(eventRegistry.isEventActive(testEventId));
     }
@@ -232,7 +495,8 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             block.timestamp,
             block.timestamp + 30 days,
-            1000
+            1000,
+            _noReward()
         );
 
         assertTrue(eventRegistry.eventExists(testEventId));
@@ -245,9 +509,9 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             block.timestamp,
             block.timestamp + 30 days,
-            10
+            10,
+            _noReward()
         );
-
         eventRegistry.incrementParticipants(testEventId);
         vm.stopPrank();
 
@@ -264,9 +528,9 @@ contract RuneraEventRegistryTest is Test {
             "Small Event",
             block.timestamp,
             block.timestamp + 30 days,
-            2 // Only 2 spots
+            2,
+            _noReward()
         );
-
         eventRegistry.incrementParticipants(testEventId);
         eventRegistry.incrementParticipants(testEventId);
 
@@ -282,10 +546,9 @@ contract RuneraEventRegistryTest is Test {
             "Unlimited Event",
             block.timestamp,
             block.timestamp + 30 days,
-            0 // Unlimited
+            0,
+            _noReward()
         );
-
-        // Should not revert even after many participants
         for (uint256 i = 0; i < 100; i++) {
             eventRegistry.incrementParticipants(testEventId);
         }
@@ -306,7 +569,8 @@ contract RuneraEventRegistryTest is Test {
             "Event 1",
             block.timestamp,
             block.timestamp + 30 days,
-            1000
+            1000,
+            _noReward()
         );
         assertEq(eventRegistry.getEventCount(), 1);
 
@@ -316,7 +580,8 @@ contract RuneraEventRegistryTest is Test {
             "Event 2",
             block.timestamp,
             block.timestamp + 30 days,
-            1000
+            1000,
+            _noReward()
         );
         assertEq(eventRegistry.getEventCount(), 2);
         vm.stopPrank();
@@ -329,9 +594,9 @@ contract RuneraEventRegistryTest is Test {
             "Test Event",
             block.timestamp,
             block.timestamp + 30 days,
-            1000
+            1000,
+            _noReward()
         );
-
         assertEq(eventRegistry.getEventIdByIndex(0), testEventId);
     }
 }

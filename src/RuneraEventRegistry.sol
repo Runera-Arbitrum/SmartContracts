@@ -6,8 +6,14 @@ import {RuneraAccessControl} from "./access/RuneraAccessControl.sol";
 
 /**
  * @title RuneraEventRegistry
- * @notice Registry for managing Runera events with time-based activation
- * @dev Requires EVENT_MANAGER_ROLE for create/update operations
+ * @notice Registry for managing Runera events with time-based activation and reward configuration
+ * @dev Requires EVENT_MANAGER_ROLE for create/update/reward operations
+ *
+ * Reward Flow:
+ * 1. Event manager creates event with optional EventReward config (on-chain)
+ * 2. User completes the event (verified off-chain by backend)
+ * 3. Backend reads getEventReward(eventId) from chain
+ * 4. Backend issues Achievement claim signature + mints Cosmetic to user
  */
 contract RuneraEventRegistry is IRuneraEventRegistry {
     /// @notice Reference to access control contract
@@ -19,6 +25,9 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
     /// @notice Mapping of event ID to event configuration
     mapping(bytes32 => EventConfig) private _events;
 
+    /// @notice Mapping of event ID to reward configuration
+    mapping(bytes32 => EventReward) private _eventRewards;
+
     /// @notice Array of all event IDs for enumeration
     bytes32[] private _eventIds;
 
@@ -28,6 +37,7 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
     error InvalidTimeWindow();
     error NotEventManager();
     error EventFull();
+    error InvalidRewardTier();
 
     /// @notice Modifier to restrict access to event managers
     modifier onlyEventManager() {
@@ -53,19 +63,27 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
 
     /**
      * @inheritdoc IRuneraEventRegistry
+     * @dev reward.achievementTier must be 0 (none) or 1-5 (valid tiers)
+     *      Set reward.hasReward = false to create event without reward
      */
     function createEvent(
         bytes32 eventId,
         string calldata name,
         uint256 startTime,
         uint256 endTime,
-        uint256 maxParticipants
+        uint256 maxParticipants,
+        EventReward calldata reward
     ) external onlyEventManager {
         if (_events[eventId].eventId != bytes32(0)) {
             revert EventAlreadyExists(eventId);
         }
         if (startTime >= endTime) {
             revert InvalidTimeWindow();
+        }
+
+        // Validate achievement tier if reward is configured
+        if (reward.hasReward && reward.achievementTier > 5) {
+            revert InvalidRewardTier();
         }
 
         _events[eventId] = EventConfig({
@@ -81,6 +99,17 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
         _eventIds.push(eventId);
 
         emit EventCreated(eventId, name, startTime, endTime, maxParticipants);
+
+        // Store reward config if provided
+        if (reward.hasReward) {
+            _eventRewards[eventId] = reward;
+            emit EventRewardConfigured(
+                eventId,
+                reward.achievementTier,
+                reward.cosmeticItemIds,
+                reward.xpBonus
+            );
+        }
     }
 
     /**
@@ -113,6 +142,32 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
 
     /**
      * @inheritdoc IRuneraEventRegistry
+     * @dev Can set reward after event creation or update existing reward
+     *      achievement tier 0 means no achievement reward
+     */
+    function setEventReward(
+        bytes32 eventId,
+        EventReward calldata reward
+    ) external onlyEventManager {
+        if (_events[eventId].eventId == bytes32(0)) {
+            revert EventDoesNotExist(eventId);
+        }
+        if (reward.hasReward && reward.achievementTier > 5) {
+            revert InvalidRewardTier();
+        }
+
+        _eventRewards[eventId] = reward;
+
+        emit EventRewardConfigured(
+            eventId,
+            reward.achievementTier,
+            reward.cosmeticItemIds,
+            reward.xpBonus
+        );
+    }
+
+    /**
+     * @inheritdoc IRuneraEventRegistry
      */
     function getEvent(
         bytes32 eventId
@@ -121,6 +176,19 @@ contract RuneraEventRegistry is IRuneraEventRegistry {
             revert EventDoesNotExist(eventId);
         }
         return _events[eventId];
+    }
+
+    /**
+     * @inheritdoc IRuneraEventRegistry
+     * @dev Returns empty EventReward (hasReward=false) if no reward configured
+     */
+    function getEventReward(
+        bytes32 eventId
+    ) external view returns (EventReward memory reward) {
+        if (_events[eventId].eventId == bytes32(0)) {
+            revert EventDoesNotExist(eventId);
+        }
+        return _eventRewards[eventId];
     }
 
     /**

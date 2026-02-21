@@ -8,6 +8,7 @@ import {
     RuneraAchievementDynamicNFT
 } from "../src/RuneraAchievementDynamicNFT.sol";
 import {IRuneraAchievement} from "../src/interfaces/IRuneraAchievement.sol";
+import {IRuneraEventRegistry} from "../src/interfaces/IRuneraEventRegistry.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 contract RuneraAchievementDynamicNFTTest is Test {
@@ -70,14 +71,23 @@ contract RuneraAchievementDynamicNFTTest is Test {
         );
         vm.stopPrank();
 
-        // Create test event
+        // Create test event (no reward)
+        uint256[] memory noCosmetics = new uint256[](0);
+        IRuneraEventRegistry.EventReward memory noReward = IRuneraEventRegistry
+            .EventReward({
+                achievementTier: 0,
+                cosmeticItemIds: noCosmetics,
+                xpBonus: 0,
+                hasReward: false
+            });
         vm.prank(eventManager);
         eventRegistry.createEvent(
             EVENT_ID_1,
             "Genesis Event",
             block.timestamp - 1 hours,
             block.timestamp + 1 hours,
-            100
+            100,
+            noReward
         );
     }
 
